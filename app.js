@@ -18,30 +18,29 @@ app.use(
 const users = [{ id: 1, email: "damian@poczta.pl", password: "secret" }];
 
 app.get("/", (req, res) => {
-  res.send("Witam");
+  res.send("Working...");
 });
 
 app.get("/api/users", authenticante, (req, res) => {
-  res.send(req.user);
+  res.status(200).json(req.user);
 });
 
 app.post("/api/login", (req, res) => {
-  //Pobierz dane
+  //Take user input
   const email = req.body.email;
   const password = req.body.password;
 
-  //Sprawdź czy istnieje user
+  //Check if user exsist
   const user = users.filter((user) => user.email === email)[0];
 
   if (!user) {
-    console.log("Nie ma uzytkownika");
-    res.sendStatus(404);
+    res.status(404).json({ error: "There is no user with that email" });
     return;
   }
 
-  //Sprawdź czy podał dobre hasło
+  //Check if given password is correct
   if (user.password === password) {
-    //Utwórz token
+    //If so, create a token
     const accessToken = jwt.sign({ id: user.id }, process.env.TOKEN_SECRET, {
       expiresIn: 10,
     });
@@ -52,29 +51,27 @@ app.post("/api/login", (req, res) => {
         expiresIn: 525600,
       }
     );
-    //Wyślij token
-    res.send({ accessToken, refreshToken });
+    //Send created token
+    res.status(200).send({ accessToken, refreshToken });
     return;
   }
 
-  console.log("Błędne hasło");
-  res.sendStatus(401);
+  res.status(401).json({ error: "Wrong password" });
 });
 
 function authenticante(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
-  if (!token) return res.sendStatus(401);
+  if (!token) return res.status(401).json({ error: "You must be logged in" });
 
   jwt.verify(token, process.env.TOKEN_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err) return res.status(403).json({ error: "Token expired" });
     req.user = user;
-    console.log("User zautentykowany!");
     next();
   });
 }
 
 app.listen(3000, () => {
-  console.log("Application is running on PORT 3000, hello");
+  console.log("Application is running on PORT 3000");
 });
