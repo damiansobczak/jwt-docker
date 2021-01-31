@@ -2,12 +2,14 @@ const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
 const express = require("express");
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
 
 dotenv.config();
 
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(
   bodyParser.urlencoded({
@@ -42,17 +44,17 @@ app.post("/api/login", (req, res) => {
   if (user.password === password) {
     //If so, create a token
     const accessToken = jwt.sign({ id: user.id }, process.env.TOKEN_SECRET, {
-      expiresIn: 10,
+      expiresIn: 5,
     });
-    const refreshToken = jwt.sign(
-      { id: user.id },
-      process.env.REFRESH_TOKEN_SECRET,
-      {
-        expiresIn: 525600,
-      }
-    );
+
     //Send created token
-    res.status(200).send({ accessToken, refreshToken });
+    res
+      .cookie("JWT", accessToken, {
+        maxAge: 5000,
+        httpOnly: true,
+        sameSite: "strict",
+      })
+      .json({ accessToken });
     return;
   }
 
@@ -60,8 +62,9 @@ app.post("/api/login", (req, res) => {
 });
 
 function authenticante(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  // const authHeader = req.headers["authorization"];
+  // const token = authHeader && authHeader.split(" ")[1];
+  const token = req.cookies.JWT;
 
   if (!token) return res.status(401).json({ error: "You must be logged in" });
 
